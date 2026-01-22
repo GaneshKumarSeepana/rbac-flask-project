@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard{% endblock %}
+
+{% block content %}
+<a class="logout" href="/logout">Logout</a>
+<h2>Admin Dashboard</h2>
+<hr>
+
+<p>Welcome, <b>{{ username }}</b></p>
+
+<h3>Your Permissions</h3>
+{% for perm in permissions %}
+    {% if perm == 'READ' %}
+        <span class="badge read">READ</span>
+    {% elif perm == 'WRITE' %}
+        <span class="badge write">WRITE</span>
+    {% elif perm == 'DELETE' %}
+        <span class="badge delete">DELETE</span>
+    {% endif %}
+{% endfor %}
+
+<hr>
+
+<h3>Admin Actions</h3>
+<div class="action-box">
+    <p>📄 View Data</p>
+    <p>✏️ Add / Update Data</p>
+    <p>🗑️ Delete Data</p>
+
+    {% if 'DELETE' in permissions %}
+        <a class="btn btn-danger" href="/delete-data">Delete (Demo)</a>
+    {% endif %}
+</div>
+{% endblock %}

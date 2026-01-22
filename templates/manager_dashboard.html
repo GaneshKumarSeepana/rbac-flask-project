@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Manager Dashboard{% endblock %}
+
+{% block content %}
+<a class="logout" href="/logout">Logout</a>
+<h2>Manager Dashboard</h2>
+<hr>
+
+<p>Welcome, <b>{{ username }}</b></p>
+
+<h3>Your Permissions</h3>
+{% for perm in permissions %}
+    {% if perm == 'READ' %}
+        <span class="badge read">READ</span>
+    {% elif perm == 'WRITE' %}
+        <span class="badge write">WRITE</span>
+    {% endif %}
+{% endfor %}
+
+<hr>
+
+<h3>Manager Actions</h3>
+<div class="action-box">
+    <p>📄 View Data</p>
+    <p>✏️ Update Data</p>
+    <p style="color:red;">🚫 Delete not allowed</p>
+</div>
+{% endblock %}

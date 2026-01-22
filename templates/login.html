@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}Login | RBAC{% endblock %}
+
+{% block content %}
+<h2 style="text-align:center;">Login</h2>
+
+{% if error %}
+    <p style="color:red; text-align:center;">{{ error }}</p>
+{% endif %}
+
+<form method="POST" action="/login">
+
+    <label><b>Username</b></label>
+    <input type="text" name="username" placeholder="Enter username" required>
+
+    <br><br>
+
+    <label><b>Password</b></label>
+    <input type="password" name="password" placeholder="Enter password" required>
+
+    <br><br>
+
+    <button class="btn" type="submit">Login</button>
+
+</form>
+{% endblock %}
