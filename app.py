@@ -5,69 +5,59 @@ import os
 app = Flask(__name__)
 app.secret_key = "rbac_secret_key"
 
-# -------------------------------------------------
-# MySQL Database Connection
-# Uses ENV vars for hosting
-# Falls back to local MySQL for development
-# -------------------------------------------------
+# ================= DATABASE CONNECTION =================
 db = mysql.connector.connect(
-    host=os.getenv("DB_HOST", "127.0.0.1"),   # forces TCP/IP (fixes named pipe error)
-    user=os.getenv("DB_USER", "root"),
-    password=os.getenv("DB_PASSWORD", "gunman"),
-    database=os.getenv("DB_NAME", "rbac_db")
+    host=os.getenv("DB_HOST"),
+    user=os.getenv("DB_USER"),
+    password=os.getenv("DB_PASSWORD"),
+    database=os.getenv("DB_NAME"),
+    port=int(os.getenv("DB_PORT", 3306))
 )
 
 cursor = db.cursor(dictionary=True)
 
-# -------------------------------------------------
-# Login Page
-# -------------------------------------------------
+# ================= LOGIN PAGE =================
 @app.route('/')
 def login():
     return render_template('login.html')
 
-# -------------------------------------------------
-# Login Authentication
-# -------------------------------------------------
+# ================= LOGIN ACTION =================
 @app.route('/login', methods=['POST'])
 def do_login():
     username = request.form['username']
     password = request.form['password']
 
     user_query = """
-    SELECT users.user_id, users.username, roles.role_name, roles.role_id
+    SELECT users.username, roles.role_name, roles.role_id
     FROM users
     JOIN roles ON users.role_id = roles.role_id
-    WHERE users.username = %s AND users.password = %s
+    WHERE users.username=%s AND users.password=%s
     """
     cursor.execute(user_query, (username, password))
     user = cursor.fetchone()
 
     if not user:
-        return render_template('login.html', error="Invalid username or password")
+        return "Invalid username or password"
 
     role_id = user['role_id']
-    role_name = user['role_name']
 
     permission_query = """
     SELECT permissions.permission_name
-    FROM role_permissions
-    JOIN permissions
-    ON role_permissions.permission_id = permissions.permission_id
+    FROM permissions
+    JOIN role_permissions
+    ON permissions.permission_id = role_permissions.permission_id
     WHERE role_permissions.role_id = %s
     """
     cursor.execute(permission_query, (role_id,))
     permissions = [p['permission_name'] for p in cursor.fetchall()]
 
-    session['username'] = username
-    session['role'] = role_name
+    session['username'] = user['username']
+    session['role'] = user['role_name']
     session['permissions'] = permissions
 
     return redirect(url_for('dashboard'))
 
-# -------------------------------------------------
-# Dashboard Router
-# -------------------------------------------------
+# ================= DASHBOARD =================
 @app.route('/dashboard')
 def dashboard():
     if 'username' not in session:
@@ -81,12 +71,14 @@ def dashboard():
             username=session['username'],
             permissions=session['permissions']
         )
+
     elif role == 'Manager':
         return render_template(
             'manager_dashboard.html',
             username=session['username'],
             permissions=session['permissions']
         )
+
     else:
         return render_template(
             'user_dashboard.html',
@@ -94,29 +86,17 @@ def dashboard():
             permissions=session['permissions']
         )
 
-# -------------------------------------------------
-# Permission Protected Route (DELETE)
-# -------------------------------------------------
-@app.route('/delete-data')
-def delete_data():
-    if 'username' not in session:
-        return redirect(url_for('login'))
-
-    if 'DELETE' not in session['permissions']:
-        return "Access Denied: You do not have DELETE permission"
-
-    return "Data deleted successfully (Demo)"
-
-# -------------------------------------------------
-# Logout
-# -------------------------------------------------
+# ================= LOGOUT =================
 @app.route('/logout')
 def logout():
     session.clear()
     return redirect(url_for('login'))
 
-# -------------------------------------------------
-# Run Application
-# -------------------------------------------------
-if __name__ == '__main__':
-    app.run(debug=True)
+# ================= HEALTH CHECK (FOR RENDER) =================
+@app.route('/healthz')
+def healthz():
+    return "OK", 200
+
+# ================= RUN APP =================
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=10000)
