@@ -1,68 +1,73 @@
 from flask import Flask, render_template, request, redirect, url_for, session
 import mysql.connector
 
-app = Flask(__name__)
-app.secret_key = "rbac_secret_key"
+# import DB credentials from local config (NOT pushed to GitHub)
+from db_config import DB_HOST, DB_USER, DB_PASSWORD, DB_NAME
 
-# -----------------------------
-# LOCAL MySQL CONNECTION
-# -----------------------------
+app = Flask(__name__)
+app.secret_key = "rbac_secret_key"  # for session handling
+
+# ---------------------------
+# Database Connection
+# ---------------------------
 db = mysql.connector.connect(
-    host="localhost",
-    user="root",
-    password="gunman",   # your local MySQL password
-    database="rbac_db"   # your existing database
+    host=DB_HOST,
+    user=DB_USER,
+    password=DB_PASSWORD,
+    database=DB_NAME
 )
 
-cursor = db.cursor(dictionary=True)
+cursor = db.cursor()
 
-# -----------------------------
-# LOGIN PAGE
-# -----------------------------
+# ---------------------------
+# Login Page
+# ---------------------------
 @app.route('/')
 def login():
     return render_template('login.html')
 
-# -----------------------------
-# LOGIN LOGIC
-# -----------------------------
+# ---------------------------
+# Login Logic
+# ---------------------------
 @app.route('/login', methods=['POST'])
 def do_login():
     username = request.form['username']
     password = request.form['password']
 
     user_query = """
-    SELECT u.username, r.role_name, r.role_id
-    FROM users u
-    JOIN roles r ON u.role_id = r.role_id
-    WHERE u.username = %s AND u.password = %s
+        SELECT users.user_id, users.username, roles.role_name, roles.role_id
+        FROM users
+        JOIN roles ON users.role_id = roles.role_id
+        WHERE users.username = %s AND users.password = %s
     """
+
     cursor.execute(user_query, (username, password))
     user = cursor.fetchone()
 
     if not user:
         return "Invalid username or password"
 
-    role_id = user['role_id']
+    user_id, username, role_name, role_id = user
 
     permission_query = """
-    SELECT p.permission_name
-    FROM role_permissions rp
-    JOIN permissions p ON rp.permission_id = p.permission_id
-    WHERE rp.role_id = %s
+        SELECT permissions.permission_name
+        FROM role_permissions
+        JOIN permissions ON role_permissions.permission_id = permissions.permission_id
+        WHERE role_permissions.role_id = %s
     """
-    cursor.execute(permission_query, (role_id,))
-    permissions = [p['permission_name'] for p in cursor.fetchall()]
 
-    session['username'] = user['username']
-    session['role'] = user['role_name']
+    cursor.execute(permission_query, (role_id,))
+    permissions = [p[0] for p in cursor.fetchall()]
+
+    session['username'] = username
+    session['role'] = role_name
     session['permissions'] = permissions
 
     return redirect(url_for('dashboard'))
 
-# -----------------------------
-# DASHBOARD ROUTER
-# -----------------------------
+# ---------------------------
+# Dashboard Router
+# ---------------------------
 @app.route('/dashboard')
 def dashboard():
     if 'username' not in session:
@@ -91,16 +96,16 @@ def dashboard():
             permissions=session['permissions']
         )
 
-# -----------------------------
-# LOGOUT
-# -----------------------------
+# ---------------------------
+# Logout
+# ---------------------------
 @app.route('/logout')
 def logout():
     session.clear()
     return redirect(url_for('login'))
 
-# -----------------------------
-# RUN LOCALLY
-# -----------------------------
+# ---------------------------
+# Run App
+# ---------------------------
 if __name__ == '__main__':
     app.run(debug=True)
